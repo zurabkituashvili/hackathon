@@ -1,9 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import User
 
-class User(models.Model):
-    username = models.CharField(max_length=255)
-    FirstName = models.CharField(max_length=255)
-    LastName = models.CharField(max_length=255)
 
 class Course(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -15,7 +12,8 @@ class Course(models.Model):
 class Chapters(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE) # course_id_fk
     Name = models.CharField(max_length=255)
-    order = models.IntegerField(null=True, blank=True)
+    # order = models.IntegerField(null=True, blank=True)
+    completed = models.BooleanField(default=False)
 
 class LearningFiles(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE) # course_id_fk
