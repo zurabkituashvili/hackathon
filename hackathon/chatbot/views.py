@@ -14,8 +14,6 @@ import dotenv
 
 dotenv.load_dotenv()
 
-dotenv.load_dotenv()
-
 # Send request to generate answer based on input
 @csrf_exempt
 def generate_text(request):
