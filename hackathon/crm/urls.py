@@ -1,10 +1,8 @@
 from django.urls import path
-from . import views
+from .api_views import RegisterView, LoginView, DashboardView
 
 urlpatterns = [
-    path('', views.homepage, name=''),
-    path('register', views.register, name='register'),
-    path('login', views.login, name='login'),
-    path('dashboard', views.dashboard, name='dashboard'),
-    path('logout', views.logout, name='logout'),
+    path('api/register/', RegisterView.as_view(), name='api-register'),
+    path('api/login/', LoginView.as_view(), name='api-login'),
+    path('api/dashboard/', DashboardView.as_view(), name='api-dashboard'),
 ]
