@@ -1,113 +1,119 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Simple Chat Test</title>
     <style>
-        #chat-container {
-            width: 500px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 10px;
-            height: 300px;
-            overflow-y: scroll;
-        }
-        #user-input {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 5px;
-            box-sizing: border-box;
-        }
-        #send-button {
-            padding: 8px 15px;
-            cursor: pointer;
-        }
-        .user-message {
-            color: blue;
-            margin-bottom: 5px;
-        }
-        .bot-message {
-            color: green;
-            margin-bottom: 5px;
-        }
+      #chat-container {
+        width: 500px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin-bottom: 10px;
+        height: 300px;
+        overflow-y: scroll;
+      }
+      #user-input {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 5px;
+        box-sizing: border-box;
+      }
+      #send-button {
+        padding: 8px 15px;
+        cursor: pointer;
+      }
+      .user-message {
+        color: blue;
+        margin-bottom: 5px;
+      }
+      .bot-message {
+        color: green;
+        margin-bottom: 5px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Simple Chat Test</h1>
 
-    <div id="chat-container">
-        </div>
+    <div id="chat-container"></div>
 
     <div>
-        <input type="text" id="user-input" placeholder="Type your message here...">
-        <button id="send-button">Send</button>
+      <input
+        type="text"
+        id="user-input"
+        placeholder="Type your message here..."
+      />
+      <button id="send-button">Send</button>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const chatContainer = document.getElementById('chat-container');
-            const userInput = document.getElementById('user-input');
-            const sendButton = document.getElementById('send-button');
+      document.addEventListener("DOMContentLoaded", function () {
+        const chatContainer = document.getElementById("chat-container");
+        const userInput = document.getElementById("user-input");
+        const sendButton = document.getElementById("send-button");
 
-            sendButton.addEventListener('click', sendMessage);
-            userInput.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter') {
-                    sendMessage();
-                }
-            });
-
-            function sendMessage() {
-                const message = userInput.value.trim();
-                if (message) {
-                    appendMessage('user', message);
-                    userInput.value = '';
-
-                    fetch('/chatbot/api/chat/', { // Make sure this URL matches your urls.py
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'X-CSRFToken': getCookie('csrftoken'), // If you remove @csrf_exempt, you'll need this
-                        },
-                        body: `user_input=${encodeURIComponent(message)}`
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.generated_text) {
-                            appendMessage('bot', data.generated_text);
-                        } else if (data.error) {
-                            appendMessage('error', `Error: ${data.error}`);
-                        }
-                    })
-                    .catch(error => {
-                        appendMessage('error', `Workspace error: ${error}`);
-                    });
-                }
-            }
-
-            function appendMessage(sender, text) {
-                const messageDiv = document.createElement('div');
-                messageDiv.classList.add(`${sender}-message`);
-                messageDiv.textContent = `${sender}: ${text}`;
-                chatContainer.appendChild(messageDiv);
-                chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to bottom
-            }
-
-            // Helper function to get the CSRF token from cookies
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        let cookie = cookies[i].trim();
-                        // Does this cookie string begin with the name we want?
-                        if (cookie.startsWith(name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            }
+        sendButton.addEventListener("click", sendMessage);
+        userInput.addEventListener("keypress", function (event) {
+          if (event.key === "Enter") {
+            sendMessage();
+          }
         });
+
+        function sendMessage() {
+          const message = userInput.value.trim();
+          if (message) {
+            appendMessage("user", message);
+            userInput.value = "";
+
+            fetch("/chatbot/", {
+              // Make sure this URL matches your urls.py
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": getCookie("csrftoken"), // If you remove @csrf_exempt, you'll need this
+              },
+              body: `user_input=${encodeURIComponent(message)}`,
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.generated_text) {
+                  appendMessage("bot", data.generated_text);
+                } else if (data.error) {
+                  appendMessage("error", `Error: ${data.error}`);
+                }
+              })
+              .catch((error) => {
+                appendMessage("error", `Workspace error: ${error}`);
+              });
+          }
+        }
+
+        function appendMessage(sender, text) {
+          const messageDiv = document.createElement("div");
+          messageDiv.classList.add(`${sender}-message`);
+          messageDiv.textContent = `${sender}: ${text}`;
+          chatContainer.appendChild(messageDiv);
+          chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to bottom
+        }
+
+        // Helper function to get the CSRF token from cookies
+        function getCookie(name) {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+            for (let i = 0; i < cookies.length; i++) {
+              let cookie = cookies[i].trim();
+              // Does this cookie string begin with the name we want?
+              if (cookie.startsWith(name + "=")) {
+                cookieValue = decodeURIComponent(
+                  cookie.substring(name.length + 1)
+                );
+                break;
+              }
+            }
+          }
+          return cookieValue;
+        }
+      });
     </script>
-</body>
+  </body>
 </html>

@@ -3,5 +3,5 @@ from . import views
 
 
 urlpatterns = [
-    path('api/chat/', views.generate_text, name='generate_chat_response')
+    path('', views.generate_text, name='generate_chat_response')
 ]

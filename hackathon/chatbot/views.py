@@ -4,7 +4,9 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from google import genai
 from google.genai import types
+import dotenv
 
+dotenv.load_dotenv()
 
 # Send request to generate answer based on input
 @csrf_exempt
@@ -13,7 +15,7 @@ def generate_text(request):
         user_input = request.POST.get('user_input', '') # Get user input from the request
         try:
             client = genai.Client(
-                api_key=os.environ.get("GEMINI_API_KEY"),
+                api_key=os.getenv("GEMINI_API_KEY"),
             )
 
             model = "gemini-2.0-flash"
