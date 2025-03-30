@@ -15,10 +15,12 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from google import genai
 from google.genai import types
-from google.genai.types import ModelContent, UserContent
+from google.genai.types import ModelContent, UserContent, GenerateContentConfig
 from pydantic import BaseModel
+import json
 
-from .models import Course, Chapters
+from .apps import ChatbotConfig
+from .models import Course, Chapters, ChapterHistory, LearningFiles
 
 
 class GeminiResponse(BaseModel):
@@ -29,7 +31,8 @@ dotenv.load_dotenv()
 
 chat_sessions = dict()
 
-genai2.configure(api_key=os.getenv('GEMINI_API_KEY'))
+API_KEY = os.getenv('GEMINI_API_KEY')
+genai2.configure(api_key=API_KEY)
 model = genai2.GenerativeModel("gemini-2.0-flash")
 
 
@@ -145,19 +148,54 @@ def get_course_chapters(request, course_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+def get_chapter_history(history):
+    #history = ChapterHistory.objects.filter(chapter=chapter).order_by('id').values()
+
+    res = []
+
+    for h in history:
+        if h['role'] == 'user':
+            res.append(UserContent(parts=[{'text': h['content']}]))
+        else:
+            res.append(ModelContent(parts=[{'text': h['content']}]))
+
+    return res
 
 @csrf_exempt
-def send_message(request, chapter_id, msg_content):
-    chapter = get_object_or_404(Chapters, id=chapter_id)
+def send_message(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
 
-    if chapter_id not in chat_sessions:
-        print('should not happen, piiiiiiiiiiizdeeeeeeec')
-        chat_sessions[chapter_id] = model.start_chat(history=os.getenv('SYS_INSTRUCTIONS_1'))
+        chapter = get_object_or_404(Chapters, id=data['chapter_id'])
+        chathistory = ChapterHistory.objects.filter(chapter=chapter).order_by("id").values()
+        course = get_object_or_404(Course, id=chapter.course.id)
+        material = LearningFiles.objects.filter(course=course)
+        client = genai.Client(api_key=API_KEY)
 
-    session = chat_sessions[chapter_id]
-    response = session.send_message(msg_content)
+        system_instructions_1 = os.getenv("SYS_INSTRUCTIONS_1")
 
-    return JsonResponse({'response': response, 'is_quiz': 0})
+        contents = [
+            types.Part.from_text(text=system_instructions_1),
+            types.Part.from_uri(file_uri=material[0].file_uri, mime_type='application/pdf')
+        ]
+
+        history = get_chapter_history(chathistory)
+        history.append(UserContent(parts=[{'text': data['msg']}]))
+
+        contents.extend(history)
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=contents,
+        )
+
+        userInput = ChapterHistory(chapter=chapter, content=data['msg'], role='user')
+        modelResponse = ChapterHistory(chapter=chapter, content=response.text, role='model')
+        userInput.save()
+        modelResponse.save()
+
+
+        return JsonResponse({'response': response.text, 'is_quiz': 0})
 
 
 @csrf_exempt
@@ -189,19 +227,16 @@ def generate_course(request):
             return JsonResponse({'error': 'course name pizdu'}, status=404)
 
         client = genai.Client(
-            api_key=os.getenv("GEMINI_API_KEY"),
+            api_key=API_KEY,
         )
 
         file_name = default_storage.save(file.name, file)
-
-        # fl = default_storage.open(file_name, 'rb')
 
         filepath = default_storage.path(file_name)
 
         uploaded_file = client.files.upload(
             file=filepath
         )
-        # fl.close()
 
         system_instructions_2 = os.getenv("SYS_INSTRUCTIONS_2")
         contents = [
@@ -217,7 +252,6 @@ def generate_course(request):
             model="gemini-2.0-flash",
             contents=contents,
             config=generate_content_config,
-
         )
 
         chapter_names = response.parsed
@@ -225,31 +259,34 @@ def generate_course(request):
         course = Course(user=user, Name=course_name, created_at=date.today())
         course.save()
 
+        material = LearningFiles(course=course, file_uri=uploaded_file.uri)
+        material.save()
+
         res = []
 
         for chapter_name in chapter_names:
             chapter = Chapters(course=course, Name=chapter_name.chapterName, completed=False)
             chapter.save()
 
-            history = [
-                {
-                    'role': 'model',
-                    'parts': [{'text': f'{os.getenv("SYS_INSTRUCTIONS_1")}'}]
-                },
-                {
-                    'role': 'model',
-                    'parts': [uploaded_file]
-                },
-                {
-                    'role': 'model',
-                    'parts': [
-                        {'text': f'This conversation should only cover {chapter_name.chapterName} and nothing else. First ask the user simplest question on this topic/chapter.'}
-                    ]
-                },
-            ]
+            # history = [
+            #     {
+            #         'role': 'model',
+            #         'parts': [{'text': f'{os.getenv("SYS_INSTRUCTIONS_1")}'}]
+            #     },
+            #     {
+            #         'role': 'model',
+            #         'parts': types.Part.from_uri(file_uri=uploaded_file.uri, mime_type='application/json')
+            #     },
+            #     {
+            #         'role': 'model',
+            #         'parts': [
+            #             {'text': f'This conversation should only cover {chapter_name.chapterName} and nothing else. First ask the user simplest question on this topic/chapter.'}
+            #         ]
+            #     },
+            # ]
 
-            chat_sessions[chapter.id] = model.start_chat(history=history)
-            # res.update({'id': chapter.id, 'chapterName': chapter_name})
+            # chat_sessions[chapter.id] = chat
+            # res.update({'id': chapter.id, 'chapterName': chat})
             res.append({'id': chapter.id, 'chapterName': chapter_name.chapterName})
 
         return JsonResponse({'chapters': res})
